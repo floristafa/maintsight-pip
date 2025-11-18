@@ -1,0 +1,7 @@
+include README.md
+include LICENSE
+include CHANGELOG.md
+recursive-include maintsight/models *.json
+recursive-include maintsight/templates *.html
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]

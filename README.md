@@ -1,9 +1,8 @@
 # 🔍 MaintSight
 
-[![npm version](https://img.shields.io/npm/v/maintsight.svg)](https://www.npmjs.com/package/maintsight)
+[![PyPI version](https://img.shields.io/pypi/v/maintsight.svg)](https://pypi.org/project/maintsight/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.3+-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 
 > **AI-powered maintenance degradation predictor for git repositories using XGBoost machine learning**
 
@@ -38,44 +37,45 @@ MaintSight analyzes your git repository's commit history and code patterns to pr
 ## 🚀 Quick Start
 
 ```bash
-# Install globally
-npm install -g @techdebtgpt/maintsight
+# Install from PyPI
+pip install maintsight
 
 # Run predictions on current directory (generates interactive HTML report)
-maintsight predict
+python3 maintsight_complete.py
 
-# Show only degraded files
-maintsight predict -t 0.1
+# Show only degraded files with threshold
+python3 maintsight_complete.py -f summary
 
-# Generate markdown report
-maintsight predict -f markdown -o report.md
+# Generate JSON output
+python3 maintsight_complete.py -f json
 
-# Generate standalone HTML report
-maintsight predict -f html -o report.html
+# Analyze specific repository
+python3 maintsight_complete.py /path/to/repo
 ```
 
 ## 📦 Installation
 
-### Global Installation (Recommended)
+### From PyPI (Coming Soon)
 
 ```bash
-npm install -g @techdebtgpt/maintsight
+pip install maintsight
 ```
 
-### Local Installation
-
-```bash
-npm install @techdebtgpt/maintsight
-```
-
-### From Source
+### From Source (Current)
 
 ```bash
 git clone https://github.com/techdebtgpt/maintsight.git
-cd maintsight-cli
-npm install
-npm run build
-npm link
+cd maintsight-pip
+pip install -r requirements.txt
+
+# Run the complete version
+python3 maintsight_complete.py
+```
+
+### Development Installation
+
+```bash
+pip install -e ".[dev]"
 ```
 
 ## 📖 Usage
@@ -83,39 +83,51 @@ npm link
 ### Basic Prediction
 
 ```bash
-# Analyze current directory
-maintsight predict
+# Analyze current directory (generates HTML report)
+python3 maintsight_complete.py
 
 # Analyze specific repository
-maintsight predict /path/to/repo
+python3 maintsight_complete.py /path/to/repo
 
-# Save results to file
-maintsight predict -o results.json
+# Generate summary output
+python3 maintsight_complete.py -f summary
 ```
 
 ### Advanced Options
 
 ```bash
 # Analyze specific branch
-maintsight predict -b develop
+python3 maintsight_complete.py -b develop
 
 # Limit commit analysis window
-maintsight predict -w 90  # Analyze last 90 days
+python3 maintsight_complete.py -w 90  # Analyze last 90 days
 
 # Limit number of commits
-maintsight predict -n 5000
+python3 maintsight_complete.py -n 5000
 
-# Filter by degradation threshold
-maintsight predict -t 0.1  # Show only degraded files
+# Generate JSON output
+python3 maintsight_complete.py -f json
 
-# Generate CSV for Excel
-maintsight predict -f csv -o analysis.csv
+# All options together
+python3 maintsight_complete.py /path/to/repo -b main -w 150 -n 1000 -f html
+```
 
-# Generate standalone HTML report
-maintsight predict -f html -o report.html
+### Python API Usage
 
-# Verbose output for debugging
-maintsight predict -v
+```python
+from maintsight import GitCommitCollector, MockPredictor
+from maintsight.utils.html_generator import generate_html_report
+
+# Collect git data
+collector = GitCommitCollector(repo_path="./", branch="main")
+commit_data = collector.fetch_commit_data()
+
+# Generate predictions
+predictor = MockPredictor()
+predictions = predictor.predict(commit_data)
+
+# Generate HTML report
+html_path = generate_html_report(predictions, commit_data, "./")
 ```
 
 ## 📊 Output Formats
@@ -176,30 +188,40 @@ Always generated automatically in `.maintsight/` folder with:
 
 ## 📚 Command Reference
 
-### `maintsight predict`
+### `maintsight_complete.py`
 
 Analyze repository and predict maintenance degradation.
 
 ```bash
-maintsight predict [path] [options]
+python3 maintsight_complete.py [path] [options]
 ```
+
+**Arguments:**
+
+- `path` - Repository path (default: current directory)
 
 **Options:**
 
-- `-b, --branch <branch>` - Git branch to analyze (default: "main")
-- `-n, --max-commits <n>` - Maximum commits to analyze (default: 10000)
-- `-w, --window-size-days <n>` - Time window in days for analysis (default: 150)
-- `-o, --output <path>` - Output file path
-- `-f, --format <fmt>` - Output format: json|csv|markdown|html (default: "json")
-- `-t, --threshold <n>` - Degradation threshold filter (show files above this score)
-- `-v, --verbose` - Verbose output
+- `-b, --branch BRANCH` - Git branch to analyze (default: "main")
+- `-n, --max-commits N` - Maximum commits to analyze (default: 1000)
+- `-w, --window-days N` - Time window in days for analysis (default: 150)
+- `-f, --format FORMAT` - Output format: json|summary|html (default: "html")
+- `-h, --help` - Show help information
 
-### `maintsight help`
-
-Show help information.
+### Examples
 
 ```bash
-maintsight help
+# Generate HTML report with default settings
+python3 maintsight_complete.py
+
+# Analyze last 90 days on develop branch
+python3 maintsight_complete.py -b develop -w 90
+
+# Get JSON output for processing
+python3 maintsight_complete.py -f json > results.json
+
+# Show summary for quick overview
+python3 maintsight_complete.py -f summary
 ```
 
 ## 🧠 Model Information
@@ -230,8 +252,7 @@ The model considers multiple dimensions of code evolution:
 
 ### Prerequisites
 
-- Node.js >= 18.0.0
-- TypeScript >= 5.3.0
+- Python >= 3.8
 - Git
 
 ### Setup
@@ -239,66 +260,77 @@ The model considers multiple dimensions of code evolution:
 ```bash
 # Clone repository
 git clone https://github.com/techdebtgpt/maintsight.git
-cd maintsight-cli
+cd maintsight-pip
 
-# Install dependencies
-npm install
+# Install in development mode
+pip install -e ".[dev]"
 
-# Build project
-npm run build
+# Or install requirements directly
+pip install -r requirements.txt
 
-# Run in development mode
-npm run cli:dev predict ./test-repo
+# Run the main script
+python3 maintsight_complete.py
 ```
 
 ### Project Structure
 
 ```
-maintsight-cli/
-├── src/
-│   ├── services/          # Core services
-│   │   ├── git-commit-collector.ts
-│   │   ├── feature-engineer.ts
-│   │   └── xgboost-predictor.ts
-│   ├── interfaces/       # TypeScript interfaces
-│   │   ├── risk-prediction.interface.ts
-│   │   ├── risk-category.enum.ts
-│   │   └── ...
-│   ├── utils/            # Utilities
-│   │   └── simple-logger.ts
-│   └── index.ts          # Main exports
-├── cli/
-│   ├── commands/         # CLI commands
-│   │   └── predict.command.ts
-│   ├── utils/           # CLI utilities
-│   │   └── html-generator.ts
-│   └── maintsight-cli.ts # CLI entry point
-├── cli/models/
-│   └── xgboost-model.json # XGBoost model
-└── tests/               # Test files
+maintsight-pip/
+├── maintsight/                    # Python package
+│   ├── __init__.py
+│   ├── cli.py                     # Click-based CLI
+│   ├── models/                    # Data models
+│   │   ├── __init__.py
+│   │   ├── commit_data.py         # CommitData dataclass
+│   │   ├── risk_category.py       # RiskCategory enum
+│   │   ├── risk_prediction.py     # RiskPrediction dataclass
+│   │   ├── file_stats.py          # FileStats dataclass
+│   │   ├── xgboost_model.py       # XGBoost model structures
+│   │   ├── xgboost_degradation_model_multiwindow_v2.pkl      # Pre-trained model
+│   │   └── xgboost_degradation_model_multiwindow_v2_metadata.json  # Model metadata
+│   ├── services/                  # Core services
+│   │   ├── __init__.py
+│   │   ├── git_commit_collector.py
+│   │   ├── feature_engineer.py
+│   │   └── xgboost_predictor.py
+│   └── utils/                     # Utilities
+│       ├── __init__.py
+│       ├── logger.py              # Rich-based logger
+│       └── html_generator.py      # HTML report generator
+├── tests/                         # pytest tests
+│   ├── __init__.py
+│   └── test_risk_category.py
+├── maintsight_complete.py         # Standalone complete script
+├── pyproject.toml                 # Modern Python packaging
+├── setup.py                       # Legacy setuptools support
+├── requirements.txt               # Runtime dependencies
+└── requirements-dev.txt           # Development dependencies
 ```
 
 ## 🧪 Testing
 
 ```bash
 # Run all tests
-npm test
+pytest
 
 # Run with coverage
-npm run test:cov
+pytest --cov=maintsight
 
-# Run specific test
-npm test -- git-commit-collector.spec.ts
+# Run specific test file
+pytest tests/test_risk_category.py
 
-# Watch mode
-npm run test:watch
+# Run with verbose output
+pytest -v
+
+# Install test dependencies
+pip install -e ".[dev]"
 ```
 
 ### Test Coverage Goals
 
 - Services: 80%+
 - Utils: 90%+
-- CLI Commands: 70%+
+- CLI: 70%+
 
 ## 🤝 Contributing
 
@@ -316,18 +348,35 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ### Code Style
 
-- Use TypeScript strict mode
-- Follow ESLint rules
+- Use Python 3.8+ features
+- Follow PEP 8 style guide
+- Use black for code formatting
+- Use type hints where appropriate
 - Write meaningful commit messages
 - Add tests for new features
 - Update documentation as needed
+
+```bash
+# Format code
+black maintsight/
+
+# Sort imports
+isort maintsight/
+
+# Lint code
+flake8 maintsight/
+
+# Type checking
+mypy maintsight/
+```
 
 ## 🐛 Bug Reports
 
 Found a bug? Please [open an issue](https://github.com/techdebtgpt/maintsight/issues/new) with:
 
-- MaintSight version
-- Node.js version
+- MaintSight version (`python3 maintsight_complete.py --help`)
+- Python version
+- Operating system
 - Steps to reproduce
 - Expected vs actual behavior
 - Error messages/stack traces
