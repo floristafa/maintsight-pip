@@ -15,8 +15,10 @@ except ImportError:
 
 try:
     from ..utils import Logger
+    from ..models import RiskPrediction, RiskCategory
 except ImportError:
     from maintsight.utils import Logger
+    from maintsight.models import RiskPrediction, RiskCategory
 
 logger = logging.getLogger(__name__)
 
@@ -77,14 +79,14 @@ class XGBoostPredictor:
         from .feature_engineer import FeatureEngineer
         self.feature_engineer = FeatureEngineer()
         
-    def predict(self, df: pd.DataFrame) -> pd.DataFrame:
+    def predict(self, df: pd.DataFrame) -> List[RiskPrediction]:
         """Predict maintenance risk for commit data.
         
         Args:
             df: DataFrame with commit features
             
         Returns:
-            DataFrame with predictions and risk categories
+            List of RiskPrediction objects
         """
         if self.model is None:
             raise RuntimeError("Model not loaded. Call load_model() first.")
@@ -153,7 +155,27 @@ class XGBoostPredictor:
         self.logger.info(f"   Calibrated predictions - Mean: {np.mean(degradation_score):.3f}, Range: [{np.min(degradation_score):.3f}, {np.max(degradation_score):.3f}]", '📊')
         self.logger.info(f"   Std dev: {np.std(degradation_score):.3f}", '📊')
         
-        return result
+        # Convert DataFrame to RiskPrediction objects
+        predictions = []
+        for _, row in result.iterrows():
+            # Convert risk category string to RiskCategory enum
+            risk_cat_map = {
+                'improved': RiskCategory.IMPROVED,
+                'stable': RiskCategory.STABLE, 
+                'degraded': RiskCategory.DEGRADED,
+                'severely-degraded': RiskCategory.SEVERELY_DEGRADED
+            }
+            risk_category = risk_cat_map.get(str(row['risk_category']), RiskCategory.STABLE)
+            
+            prediction = RiskPrediction(
+                module=str(row['module']),
+                risk_category=risk_category,
+                degradation_score=float(row['degradation_score']),
+                raw_prediction=float(row['raw_prediction'])
+            )
+            predictions.append(prediction)
+            
+        return predictions
         
     def _predict_single(self, features: List[float]) -> float:
         """Make prediction for a single feature vector.

@@ -305,6 +305,7 @@ class GitCommitCollector:
                     'module': filepath,
                     'commits': num_commits,
                     'authors': num_authors,
+                    'author_names': list(stats['authors']),  # Include actual author names
                     'lines_added': stats['lines_added'],
                     'lines_deleted': stats['lines_deleted'],
                     'churn': stats['lines_added'] + stats['lines_deleted'],
