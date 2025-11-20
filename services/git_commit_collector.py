@@ -9,13 +9,8 @@ import subprocess
 import pandas as pd
 from git import Repo
 
-try:
-    from ..models import CommitData, FileStats
-    from ..utils import Logger
-except ImportError:
-    # For development/testing
-    from models import CommitData, FileStats
-    from utils import Logger
+from models import CommitData, FileStats
+from utils.logger import Logger
 
 
 class GitCommitCollector:

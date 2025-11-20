@@ -1,7 +1,7 @@
 """Risk prediction result model."""
 
 from dataclasses import dataclass
-from .risk_category import RiskCategory
+from models.risk_category import RiskCategory
 
 
 @dataclass

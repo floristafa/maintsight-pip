@@ -2,15 +2,8 @@
 
 import sys
 from typing import Optional
-
-try:
-    from rich.console import Console
-    from rich.text import Text
-    HAS_RICH = True
-except ImportError:
-    HAS_RICH = False
-    Console = None
-    Text = None
+from rich.console import Console
+from rich.text import Text
 
 
 class Logger:
@@ -23,10 +16,7 @@ class Logger:
             name: Logger name (usually module or class name)
         """
         self.name = name
-        if HAS_RICH and Console is not None:
-            self.console = Console()
-        else:
-            self.console = None
+        self.console = Console()
         
     def info(self, message: str, emoji: Optional[str] = None) -> None:
         """Log info message.
@@ -36,10 +26,7 @@ class Logger:
             emoji: Optional emoji prefix
         """
         prefix = f"{emoji} " if emoji else ""
-        if HAS_RICH and self.console:
-            self.console.print(f"{prefix}{message}", style="blue")
-        else:
-            print(f"{prefix}{message}")
+        self.console.print(f"{prefix}{message}", style="blue")
         
     def warn(self, message: str, emoji: Optional[str] = None) -> None:
         """Log warning message.
@@ -49,10 +36,7 @@ class Logger:
             emoji: Optional emoji prefix
         """
         prefix = f"{emoji} " if emoji else "⚠️  "
-        if HAS_RICH and self.console:
-            self.console.print(f"{prefix}{message}", style="yellow")
-        else:
-            print(f"{prefix}{message}")
+        self.console.print(f"{prefix}{message}", style="yellow")
         
     def error(self, message: str, emoji: Optional[str] = None) -> None:
         """Log error message.
@@ -62,11 +46,8 @@ class Logger:
             emoji: Optional emoji prefix
         """
         prefix = f"{emoji} " if emoji else "❌ "
-        if HAS_RICH and self.console:
-            # Use regular print to stderr for error messages to avoid rich console file parameter issues
-            print(f"{prefix}{message}", file=sys.stderr)
-        else:
-            print(f"{prefix}{message}", file=sys.stderr)
+        # Use regular print to stderr for error messages to avoid rich console file parameter issues
+        print(f"{prefix}{message}", file=sys.stderr)
         
     def success(self, message: str, emoji: Optional[str] = None) -> None:
         """Log success message.
@@ -76,10 +57,7 @@ class Logger:
             emoji: Optional emoji prefix
         """
         prefix = f"{emoji} " if emoji else "✅ "
-        if HAS_RICH and self.console:
-            self.console.print(f"{prefix}{message}", style="green")
-        else:
-            print(f"{prefix}{message}")
+        self.console.print(f"{prefix}{message}", style="green")
         
     def debug(self, message: str, emoji: Optional[str] = None) -> None:
         """Log debug message.
@@ -89,7 +67,4 @@ class Logger:
             emoji: Optional emoji prefix
         """
         prefix = f"{emoji} " if emoji else "🔍 "
-        if HAS_RICH and self.console:
-            self.console.print(f"{prefix}[{self.name}] {message}", style="dim")
-        else:
-            print(f"{prefix}[{self.name}] {message}")
+        self.console.print(f"{prefix}[{self.name}] {message}", style="dim")

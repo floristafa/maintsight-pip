@@ -13,20 +13,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-# Import modules with proper fallback handling
-try:
-    # Try relative imports first (when installed as package)
-    from .services import GitCommitCollector, FeatureEngineer, XGBoostPredictor
-    from .models import RiskCategory
-    from .utils import Logger
-except ImportError:
-    # Fallback for development/standalone execution
-    import sys
-    import os
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from services import GitCommitCollector, FeatureEngineer, XGBoostPredictor
-    from models import RiskCategory
-    from utils.logger import Logger
+# Import modules
+from services import GitCommitCollector, FeatureEngineer, XGBoostPredictor
+from models import RiskCategory
+from utils.logger import Logger
 
 
 @click.group()

@@ -7,11 +7,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 import math
 
-try:
-    from ..models import RiskPrediction, CommitData
-except ImportError:
-    # Fallback for standalone usage
-    pass
+from models import RiskPrediction, CommitData
 
 
 class FileTreeNode:

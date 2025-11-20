@@ -7,18 +7,10 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 import pandas as pd
 import numpy as np
+import joblib
 
-try:
-    import joblib
-except ImportError:
-    joblib = None
-
-try:
-    from ..utils import Logger
-    from ..models import RiskPrediction, RiskCategory
-except ImportError:
-    from utils import Logger
-    from models import RiskPrediction, RiskCategory
+from utils.logger import Logger
+from models import RiskPrediction, RiskCategory
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +68,7 @@ class XGBoostPredictor:
             self.calibration_stats = None
             
         # Initialize feature engineer
-        from .feature_engineer import FeatureEngineer
+        from services.feature_engineer import FeatureEngineer
         self.feature_engineer = FeatureEngineer()
         
     def predict(self, df: pd.DataFrame) -> List[RiskPrediction]:

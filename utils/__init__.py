@@ -1,6 +1,6 @@
 """Utility modules for MaintSight."""
 
-from .logger import Logger
+from utils.logger import Logger
 
 __all__ = [
     "Logger",

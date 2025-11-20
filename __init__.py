@@ -11,38 +11,20 @@ __author__ = "TechDebtGPT Team"
 __email__ = "support@techdebtgpt.com"
 __license__ = "Apache-2.0"
 
-try:
-    # Try relative imports first (when installed as package)
-    from .models import (
-        CommitData,
-        RiskPrediction, 
-        RiskCategory,
-        FileStats,
-    )
-    
-    from .services import (
-        GitCommitCollector,
-        FeatureEngineer,
-        XGBoostPredictor,
-    )
-    
-    from .utils import Logger
-except ImportError:
-    # Fall back to direct imports (when running from source)
-    from models import (
-        CommitData,
-        RiskPrediction, 
-        RiskCategory,
-        FileStats,
-    )
-    
-    from services import (
-        GitCommitCollector,
-        FeatureEngineer,
-        XGBoostPredictor,
-    )
-    
-    from utils import Logger
+from models import (
+    CommitData,
+    RiskPrediction, 
+    RiskCategory,
+    FileStats,
+)
+
+from services import (
+    GitCommitCollector,
+    FeatureEngineer,
+    XGBoostPredictor,
+)
+
+from utils.logger import Logger
 
 __all__ = [
     # Models
