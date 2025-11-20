@@ -12,7 +12,7 @@ def read_readme():
 # Read version from __init__.py
 def read_version():
     here = os.path.abspath(os.path.dirname(__file__))
-    version_file = os.path.join(here, 'maintsight', '__init__.py')
+    version_file = os.path.join(here, '__init__.py')
     with open(version_file, 'r', encoding='utf-8') as f:
         for line in f:
             if line.startswith('__version__'):
@@ -35,15 +35,20 @@ setup(
     },
     packages=find_packages(exclude=['tests*']),
     package_data={
-        'maintsight': ['models/*.json', 'templates/*.html'],
+        'models': ['*.pkl', '*.json'],
+        'utils': ['templates/*.html'],
     },
     include_package_data=True,
     python_requires='>=3.8',
     install_requires=[
         'click>=8.0.0',
+        'dill>=0.3.6',
         'gitpython>=3.1.0',
+        'joblib>=1.3.0',
         'numpy>=1.21.0',
         'pandas>=1.3.0',
+        'scikit-learn>=1.1.0',
+        'xgboost>=1.6.0',
         'jinja2>=3.0.0',
         'rich>=12.0.0',
         'tqdm>=4.62.0',
@@ -67,8 +72,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'maintsight=maintsight.cli:main',
-            'ms=maintsight.cli:main',
+            'maintsight=cli:main',
+            'ms=cli:main',
         ],
     },
     classifiers=[

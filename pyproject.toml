@@ -70,14 +70,16 @@ Repository = "https://github.com/techdebtgpt/maintsight"
 "Bug Tracker" = "https://github.com/techdebtgpt/maintsight/issues"
 
 [project.scripts]
-maintsight = "maintsight.cli:main"
-ms = "maintsight.cli:main"
+maintsight = "cli:main"
+ms = "cli:main"
 
 [tool.setuptools]
-packages = ["maintsight", "maintsight.services", "maintsight.models", "maintsight.utils"]
+packages = ["services", "models", "utils"]
+py-modules = ["cli", "__init__"]
 
 [tool.setuptools.package-data]
-maintsight = ["models/*.pkl", "models/*.json", "templates/*.html"]
+models = ["*.pkl", "*.json"]
+utils = ["templates/*.html"]
 
 [tool.black]
 line-length = 88

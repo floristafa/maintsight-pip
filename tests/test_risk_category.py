@@ -1,7 +1,7 @@
 """Tests for RiskCategory enum."""
 
 import pytest
-from maintsight.models.risk_category import RiskCategory
+from models.risk_category import RiskCategory
 
 
 class TestRiskCategory:

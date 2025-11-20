@@ -14,8 +14,8 @@ try:
     from ..utils import Logger
 except ImportError:
     # For development/testing
-    from maintsight.models import CommitData, FileStats
-    from maintsight.utils import Logger
+    from models import CommitData, FileStats
+    from utils import Logger
 
 
 class GitCommitCollector:

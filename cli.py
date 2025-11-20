@@ -13,14 +13,20 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-# For now, ignore import errors - we'll fix them later
+# Import modules with proper fallback handling
 try:
+    # Try relative imports first (when installed as package)
     from .services import GitCommitCollector, FeatureEngineer, XGBoostPredictor
     from .models import RiskCategory
     from .utils import Logger
 except ImportError:
-    # Fallback for development
-    pass
+    # Fallback for development/standalone execution
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from services import GitCommitCollector, FeatureEngineer, XGBoostPredictor
+    from models import RiskCategory
+    from utils.logger import Logger
 
 
 @click.group()
@@ -219,6 +225,9 @@ def predict(
             result = _format_markdown_report(predictions, Path(path).name)
             
         elif format == 'html':
+            result = _format_html_report(predictions, Path(path).name, commit_data)
+        else:
+            # Default to HTML format if unknown format is specified
             result = _format_html_report(predictions, Path(path).name, commit_data)
             
         # Always generate HTML report in .maintsight directory

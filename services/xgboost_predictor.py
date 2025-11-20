@@ -17,8 +17,8 @@ try:
     from ..utils import Logger
     from ..models import RiskPrediction, RiskCategory
 except ImportError:
-    from maintsight.utils import Logger
-    from maintsight.models import RiskPrediction, RiskCategory
+    from utils import Logger
+    from models import RiskPrediction, RiskCategory
 
 logger = logging.getLogger(__name__)
 
