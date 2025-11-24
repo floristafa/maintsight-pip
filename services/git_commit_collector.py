@@ -6,7 +6,6 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Set, Optional, Tuple
 import subprocess
-import pandas as pd
 from git import Repo
 
 from models import CommitData, FileStats
@@ -142,60 +141,96 @@ class GitCommitCollector:
             
         return filepath, old_path
         
-    def fetch_commit_data(self, max_commits: int = 10000) -> pd.DataFrame:
-        """Fetch commit data and aggregate by file (matches temporal_git_collector approach).
+    def fetch_commit_data(self, max_commits: int = 10000) -> List[CommitData]:
+        """Fetch commit data using exact git command logic: git log ${branch} -n ${max} --numstat --find-renames --format="%H|%ae|%at|%s" --since="${since}" --no-merges
         
         Args:
             max_commits: Maximum number of commits to analyze
             
         Returns:
-            DataFrame with file-level aggregated commit data
+            List of CommitData objects with file-level aggregated commit data
         """
         self.logger.info(f"Fetching commits from {self.repo_path} (branch: {self.branch})", '🔄')
         self.logger.info(f"Max commits: {max_commits}", '📊')
         self.logger.info(f"Time window: last {self.window_size_days} days", '📅')
         
-        # Calculate since date
+        # Calculate since timestamp (Unix timestamp)
         since_date = datetime.now() - timedelta(days=self.window_size_days)
+        since_timestamp = str(int(since_date.timestamp()))
         
-        # Use GitPython for better compatibility
+        # Execute exact git command: git log ${branch} -n ${max} --numstat --find-renames --format="%H|%ae|%at|%s" --since="${since}" --no-merges
         try:
-            repo = Repo(self.repo_path)
-            commits = list(repo.iter_commits(
+            git_args = [
+                'log',
                 self.branch,
-                max_count=max_commits,
-                since=since_date
-            ))
-            self.logger.info(f"Found {len(commits)} commits in time window", '📊')
+                f'-n{max_commits}',
+                '--numstat',
+                '--find-renames',
+                '--format=%H|%ae|%at|%s',
+                f'--since={since_timestamp}',
+                '--no-merges'
+            ]
             
+            output = self._run_git_command(git_args)
+            
+            if not output.strip():
+                self.logger.warn("No commits found in time window", '⚠️')
+                return []
+            
+            # Parse git output
             file_stats: Dict[str, Dict] = {}
+            current_commit = None
             
-            for commit in commits:
-                commit_date = commit.committed_datetime
-                if commit_date.tzinfo is not None:
-                    commit_date = commit_date.astimezone(timezone.utc).replace(tzinfo=None)
+            for line in output.strip().split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
                 
-                author = str(commit.author.email)
-                message = str(commit.message).lower()
-                is_bug_fix = any(kw in message for kw in ['fix', 'bug', 'patch', 'hotfix', 'bugfix'])
-                is_feature = any(kw in message for kw in ['feat', 'feature', 'add', 'implement'])
-                is_refactor = any(kw in message for kw in ['refactor', 'clean', 'improve'])
+                # Parse commit header: "hash|author_email|timestamp|subject"
+                if '|' in line and len(line.split('|')) == 4:
+                    hash_val, author_email, timestamp, subject = line.split('|', 3)
+                    current_commit = {
+                        'hash': hash_val,
+                        'author': author_email,
+                        'timestamp': int(timestamp),
+                        'subject': subject.lower()
+                    }
+                    continue
                 
-                if commit.parents:
-                    parent = commit.parents[0]
-                    diffs = parent.diff(commit, create_patch=True)
-                    
-                    for diff in diffs:
-                        filepath = diff.b_path or diff.a_path
-                        if not filepath or not self._is_source_file(filepath):
+                # Parse numstat line: "added_lines\tdeleted_lines\tfilepath"
+                if current_commit and '\t' in line:
+                    parts = line.split('\t')
+                    if len(parts) >= 3:
+                        added_str, deleted_str = parts[0], parts[1]
+                        filepath = '\t'.join(parts[2:])  # Handle filenames with tabs
+                        
+                        # Handle binary files (marked as '-')
+                        try:
+                            lines_added = int(added_str) if added_str != '-' else 0
+                            lines_deleted = int(deleted_str) if deleted_str != '-' else 0
+                        except ValueError:
+                            lines_added = lines_deleted = 0
+                        
+                        # Handle renames (git --find-renames shows "oldpath => newpath")
+                        rename_info = self._parse_rename_info(filepath)
+                        if rename_info is None:
                             continue
                         
+                        filepath, old_path = rename_info
+                        
+                        # Only process source files
+                        if not self._is_source_file(filepath):
+                            continue
+                        
+                        # Only analyze existing files if requested
                         if self.only_existing_files:
                             full_path = self.repo_path / filepath
                             if not full_path.exists():
                                 continue
                         
+                        # Initialize file stats if not exists
                         if filepath not in file_stats:
+                            commit_date = datetime.fromtimestamp(current_commit['timestamp'])
                             file_stats[filepath] = {
                                 'lines_added': 0,
                                 'lines_deleted': 0,
@@ -208,115 +243,72 @@ class GitCommitCollector:
                                 'last_commit': commit_date
                             }
                         
+                        # Update file stats
                         stats = file_stats[filepath]
+                        commit_date = datetime.fromtimestamp(current_commit['timestamp'])
                         
-                        if diff.diff:
-                            if isinstance(diff.diff, bytes):
-                                diff_text = diff.diff.decode('utf-8', errors='ignore')
-                            else:
-                                diff_text = str(diff.diff)
-                            lines_added = sum(1 for line in diff_text.split('\n')
-                                             if line.startswith('+') and not line.startswith('+++'))
-                            lines_deleted = sum(1 for line in diff_text.split('\n')
-                                               if line.startswith('-') and not line.startswith('---'))
-                            stats['lines_added'] += lines_added
-                            stats['lines_deleted'] += lines_deleted
-                        
+                        stats['lines_added'] += lines_added
+                        stats['lines_deleted'] += lines_deleted
                         stats['commits'] += 1
-                        stats['authors'].add(author)
-                        if is_bug_fix:
+                        stats['authors'].add(current_commit['author'])
+                        
+                        # Classify commit type based on subject
+                        subject = current_commit['subject']
+                        if any(kw in subject for kw in ['fix', 'bug', 'patch', 'hotfix', 'bugfix']):
                             stats['bug_commits'] += 1
-                        if is_feature:
+                        if any(kw in subject for kw in ['feat', 'feature', 'add', 'implement']):
                             stats['feature_commits'] += 1
-                        if is_refactor:
+                        if any(kw in subject for kw in ['refactor', 'clean', 'improve']):
                             stats['refactor_commits'] += 1
                         
                         stats['first_commit'] = min(stats['first_commit'], commit_date)
                         stats['last_commit'] = max(stats['last_commit'], commit_date)
-                else:
-                    # Handle initial commit (no parents) - treat all files as added
-                    for item in commit.tree.traverse():
-                        if item.type == 'blob':  # It's a file
-                            filepath = item.path
-                            if not self._is_source_file(filepath):
-                                continue
-                            
-                            if self.only_existing_files:
-                                full_path = self.repo_path / filepath
-                                if not full_path.exists():
-                                    continue
-                            
-                            if filepath not in file_stats:
-                                file_stats[filepath] = {
-                                    'lines_added': 0,
-                                    'lines_deleted': 0,
-                                    'commits': 0,
-                                    'authors': set(),
-                                    'bug_commits': 0,
-                                    'feature_commits': 0,
-                                    'refactor_commits': 0,
-                                    'first_commit': commit_date,
-                                    'last_commit': commit_date
-                                }
-                            
-                            stats = file_stats[filepath]
-                            # Estimate lines added for initial commit (can't get exact diff)
-                            try:
-                                lines_added = len(item.data_stream.read().decode('utf-8', errors='ignore').splitlines())
-                                stats['lines_added'] += lines_added
-                            except:
-                                stats['lines_added'] += 10  # Default estimate
-                            
-                            stats['commits'] += 1
-                            stats['authors'].add(author)
-                            if is_bug_fix:
-                                stats['bug_commits'] += 1
-                            if is_feature:
-                                stats['feature_commits'] += 1
-                            if is_refactor:
-                                stats['refactor_commits'] += 1
-                            
-                            stats['first_commit'] = min(stats['first_commit'], commit_date)
-                            stats['last_commit'] = max(stats['last_commit'], commit_date)
             
             if not file_stats:
                 self.logger.warn("No source files found in commits", '⚠️')
-                return pd.DataFrame()
+                return []
             
-            # Convert to DataFrame records
-            records = []
+            # Convert to CommitData objects
+            commit_data_objects = []
             
             for filepath, stats in file_stats.items():
                 days_active = max((stats['last_commit'] - stats['first_commit']).days, 1)
                 num_authors = len(stats['authors'])
                 num_commits = stats['commits']
                 
-                # Calculate base features (matching git_commit_client.py exactly)
-                # Base features: 13 total
-                # commits, authors, lines_added, lines_deleted, churn
-                # bug_commits, refactor_commits, feature_commits
-                # lines_per_author, churn_per_commit, bug_ratio, days_active, commits_per_day
-                records.append({
-                    'module': filepath,
-                    'commits': num_commits,
-                    'authors': num_authors,
-                    'author_names': list(stats['authors']),  # Include actual author names
-                    'lines_added': stats['lines_added'],
-                    'lines_deleted': stats['lines_deleted'],
-                    'churn': stats['lines_added'] + stats['lines_deleted'],
-                    'bug_commits': stats['bug_commits'],
-                    'refactor_commits': stats['refactor_commits'],
-                    'feature_commits': stats['feature_commits'],
-                    'lines_per_author': stats['lines_added'] / num_authors if num_authors > 0 else 0,
-                    'churn_per_commit': (stats['lines_added'] + stats['lines_deleted']) / num_commits if num_commits > 0 else 0,
-                    'bug_ratio': stats['bug_commits'] / num_commits if num_commits > 0 else 0,
-                    'days_active': days_active,
-                    'commits_per_day': num_commits / days_active
-                })
+                # Calculate derived features
+                lines_per_author = stats['lines_added'] / num_authors if num_authors > 0 else 0
+                churn_per_commit = (stats['lines_added'] + stats['lines_deleted']) / num_commits if num_commits > 0 else 0
+                bug_ratio = stats['bug_commits'] / num_commits if num_commits > 0 else 0
+                commits_per_day = num_commits / days_active
+                
+                commit_data = CommitData(
+                    module=filepath,
+                    filename=Path(filepath).name,
+                    repo_name=self.repo_path.name,
+                    commits=num_commits,
+                    authors=num_authors,
+                    author_names=list(stats['authors']),
+                    lines_added=stats['lines_added'],
+                    lines_deleted=stats['lines_deleted'],
+                    churn=stats['lines_added'] + stats['lines_deleted'],
+                    bug_commits=stats['bug_commits'],
+                    refactor_commits=stats['refactor_commits'],
+                    feature_commits=stats['feature_commits'],
+                    lines_per_author=lines_per_author,
+                    churn_per_commit=churn_per_commit,
+                    bug_ratio=bug_ratio,
+                    days_active=days_active,
+                    commits_per_day=commits_per_day,
+                    created_at=stats['first_commit'],
+                    last_modified=stats['last_commit']
+                )
+                
+                commit_data_objects.append(commit_data)
             
-            df = pd.DataFrame(records)
-            self.logger.success(f"Fetched data for {len(df)} files from {len(commits)} commits", '✅')
-            return df
+            total_commits = sum(stats['commits'] for stats in file_stats.values()) if file_stats else 0
+            self.logger.success(f"Fetched data for {len(commit_data_objects)} files from {total_commits} total file commits", '✅')
+            return commit_data_objects
             
         except Exception as e:
             raise RuntimeError(f"Failed to fetch commit data: {e}")

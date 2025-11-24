@@ -21,13 +21,6 @@ class TestRiskCategory:
         assert RiskCategory.STABLE.display_name == "Stable"
         assert RiskCategory.IMPROVED.display_name == "Improved"
         
-    def test_emojis(self):
-        """Test emoji representations."""
-        assert RiskCategory.SEVERELY_DEGRADED.emoji == "🔴"
-        assert RiskCategory.DEGRADED.emoji == "🟡"
-        assert RiskCategory.STABLE.emoji == "🔵"
-        assert RiskCategory.IMPROVED.emoji == "🟢"
-        
     def test_from_score_severely_degraded(self):
         """Test severely degraded categorization (> 0.2)."""
         assert RiskCategory.from_score(0.3) == RiskCategory.SEVERELY_DEGRADED

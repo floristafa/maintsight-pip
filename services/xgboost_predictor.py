@@ -10,7 +10,7 @@ import numpy as np
 import joblib
 
 from utils.logger import Logger
-from models import RiskPrediction, RiskCategory
+from models import RiskPrediction, RiskCategory, CommitData
 
 logger = logging.getLogger(__name__)
 
@@ -71,11 +71,11 @@ class XGBoostPredictor:
         from services.feature_engineer import FeatureEngineer
         self.feature_engineer = FeatureEngineer()
         
-    def predict(self, df: pd.DataFrame) -> List[RiskPrediction]:
+    def predict(self, commit_data_list: List[CommitData]) -> List[RiskPrediction]:
         """Predict maintenance risk for commit data.
         
         Args:
-            df: DataFrame with commit features
+            commit_data_list: List of CommitData objects with commit features
             
         Returns:
             List of RiskPrediction objects
@@ -85,88 +85,86 @@ class XGBoostPredictor:
         if self.feature_engineer is None:
             raise RuntimeError("Feature engineer not initialized. Call load_model() first.")
             
-        self.logger.info(f"Generating features for {len(df)} file records...", '🔧')
-        df_features = self.feature_engineer.transform(df)
+        self.logger.info(f"Generating features for {len(commit_data_list)} file records...", '🔧')
+        commit_data_with_features = self.feature_engineer.transform(commit_data_list)
         
-        # Get the 14 selected features for prediction
-        selected_features = self.feature_engineer.get_selected_features()
+        # Convert CommitData objects to feature vectors for ML model
+        feature_vectors = []
+        for commit_data in commit_data_with_features:
+            feature_vectors.append(commit_data.to_feature_vector())
         
-        # Only keep the selected features for prediction
-        X = df_features[selected_features] if all(f in df_features.columns for f in selected_features) else df_features[[f for f in selected_features if f in df_features.columns]]
+        X = np.array(feature_vectors)
+        feature_names = CommitData.feature_names()
         
         # Check if model expects specific features
         try:
             expected_features = self.model.get_booster().feature_names
             if expected_features:
                 self.logger.info(f"Model expects {len(expected_features)} features", '📊')
-                self.logger.info(f"We have {len(X.columns)} features", '📊')
+                self.logger.info(f"We have {len(feature_names)} features", '📊')
+                
+                # Map our features to expected features
+                feature_mapping = {}
+                for i, feat_name in enumerate(feature_names):
+                    if feat_name in expected_features:
+                        feature_mapping[expected_features.index(feat_name)] = i
+                
+                # Create reordered feature matrix
+                X_reordered = np.zeros((X.shape[0], len(expected_features)))
+                for expected_idx, our_idx in feature_mapping.items():
+                    X_reordered[:, expected_idx] = X[:, our_idx]
                 
                 # Fill missing features with 0
-                missing_features = set(expected_features) - set(X.columns)
+                missing_features = set(expected_features) - set(feature_names)
                 if missing_features:
                     self.logger.warn(f"Missing features: {missing_features}", '⚠️')
-                    for feat in missing_features:
-                        X[feat] = 0
                 
-                # Drop extra features
-                extra_features = set(X.columns) - set(expected_features)
-                if extra_features:
-                    self.logger.info(f"Extra features (will be dropped): {extra_features}", '📊')
-                X = X[expected_features]
-        except:
-            # Model might not have feature names, use what we have
-            pass
-            
-        self.logger.info(f"Using {len(X.columns)} features for prediction", '📊')
+                X = X_reordered
+                self.logger.info(f"Using {len(expected_features)} features for prediction", '📊')
+        except Exception as e:
+            # Fallback if we can't get feature names from model
+            self.logger.warn(f"Could not get model feature names: {e}")
+            if X.size == 0:
+                raise RuntimeError("No valid features found for prediction")
+        
         self.logger.info("Running inference...", '🔮')
-        raw_predictions = self.model.predict(X)
         
-        # Apply prediction calibration
-        degradation_score = self._calibrate_predictions(raw_predictions)
+        # Make predictions
+        if hasattr(self.model, 'predict_proba'):
+            # For classifiers
+            raw_predictions = self.model.predict_proba(X)[:, 1]  # Probability of positive class
+        else:
+            # For regressors
+            raw_predictions = self.model.predict(X)
         
-        # Start with the full feature dataframe (includes all base + engineered features)
-        result = df_features.copy()
+        # Apply calibration if available
+        if self.calibration_stats:
+            degradation_scores = self._calibrate_predictions(raw_predictions)
+        else:
+            degradation_scores = raw_predictions
         
-        # Add prediction results
-        result['degradation_score'] = degradation_score
-        result['raw_prediction'] = raw_predictions  # Keep raw for debugging
-        
-        # Categorize based on degradation score
-        # Training data range: -0.53 to +0.57, avg: -0.01, stdDev: 0.082
-        # Bins based on actual training distribution:
-        # < 0: improved, 0-0.1: stable, 0.1-0.2: degraded, > 0.2: severely degraded
-        result['risk_category'] = pd.cut(
-            degradation_score,
-            bins=[-float('inf'), 0, 0.1, 0.2, float('inf')],
-            labels=['improved', 'stable', 'degraded', 'severely-degraded'],
-            include_lowest=True
-        )
+        # Print prediction statistics
+        self.logger.info(f"Raw predictions - Mean: {np.mean(raw_predictions):.3f}, Range: [{np.min(raw_predictions):.3f}, {np.max(raw_predictions):.3f}]", '📊')
+        if self.calibration_stats:
+            self.logger.info(f"Calibrated predictions - Mean: {np.mean(degradation_scores):.3f}, Range: [{np.min(degradation_scores):.3f}, {np.max(degradation_scores):.3f}]", '📊')
+            self.logger.info(f"Std dev: {np.std(degradation_scores):.3f}", '📊')
         
         self.logger.success("Predictions complete", '✅')
-        self.logger.info(f"   Raw predictions - Mean: {np.mean(raw_predictions):.3f}, Range: [{np.min(raw_predictions):.3f}, {np.max(raw_predictions):.3f}]", '📊')
-        self.logger.info(f"   Calibrated predictions - Mean: {np.mean(degradation_score):.3f}, Range: [{np.min(degradation_score):.3f}, {np.max(degradation_score):.3f}]", '📊')
-        self.logger.info(f"   Std dev: {np.std(degradation_score):.3f}", '📊')
         
-        # Convert DataFrame to RiskPrediction objects
+        # Convert to RiskPrediction objects
         predictions = []
-        for _, row in result.iterrows():
-            # Convert risk category string to RiskCategory enum
-            risk_cat_map = {
-                'improved': RiskCategory.IMPROVED,
-                'stable': RiskCategory.STABLE, 
-                'degraded': RiskCategory.DEGRADED,
-                'severely-degraded': RiskCategory.SEVERELY_DEGRADED
-            }
-            risk_category = risk_cat_map.get(str(row['risk_category']), RiskCategory.STABLE)
+        for i, commit_data in enumerate(commit_data_with_features):
+            degradation_score = degradation_scores[i]
+            raw_prediction = raw_predictions[i]
+            risk_category = RiskCategory.from_score(degradation_score)
             
-            prediction = RiskPrediction(
-                module=str(row['module']),
+            predictions.append(RiskPrediction(
+                module=commit_data.module,
                 risk_category=risk_category,
-                degradation_score=float(row['degradation_score']),
-                raw_prediction=float(row['raw_prediction'])
-            )
-            predictions.append(prediction)
-            
+                degradation_score=degradation_score,
+                raw_prediction=raw_prediction
+            ))
+        
         return predictions
         
     def _predict_single(self, features: List[float]) -> float:

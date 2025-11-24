@@ -175,7 +175,7 @@ def predict(
         
         commit_data = collector.fetch_commit_data(max_commits)
         
-        if commit_data is None or commit_data.empty:
+        if not commit_data:
             logger.error("No source files found in git history")
             sys.exit(1)
             

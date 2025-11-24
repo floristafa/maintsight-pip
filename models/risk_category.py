@@ -25,17 +25,6 @@ class RiskCategory(Enum):
         }
         return names[self]
         
-    @property
-    def emoji(self) -> str:
-        """Emoji representation for the risk category."""
-        emojis = {
-            self.SEVERELY_DEGRADED: "🔴",
-            self.DEGRADED: "🟡",
-            self.STABLE: "🔵",
-            self.IMPROVED: "🟢",
-        }
-        return emojis[self]
-        
     @classmethod
     def from_score(cls, score: float) -> "RiskCategory":
         """Categorize a degradation score into risk levels.
