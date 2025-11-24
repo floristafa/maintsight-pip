@@ -1,67 +1,30 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = [ "setuptools>=61.0", "wheel",]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "maintsight"
-version = "0.1.0"
+version = "0.2.0"
 description = "AI-powered maintenance risk predictor for git repositories using XGBoost"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "Apache-2.0"}
-authors = [
-    {name = "TechDebtGPT Team", email = "support@techdebtgpt.com"}
-]
-maintainers = [
-    {name = "TechDebtGPT Team", email = "support@techdebtgpt.com"}
-]
-keywords = ["maintenance", "technical-debt", "risk-prediction", "xgboost", "git", "code-quality", "machine-learning", "repository-health"]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License", 
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9", 
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Software Development :: Quality Assurance",
-    "Topic :: Software Development :: Version Control :: Git",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-]
+keywords = [ "maintenance", "technical-debt", "risk-prediction", "xgboost", "git", "code-quality", "machine-learning", "repository-health",]
+classifiers = [ "Development Status :: 4 - Beta", "Intended Audience :: Developers", "License :: OSI Approved :: Apache Software License", "Operating System :: OS Independent", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.8", "Programming Language :: Python :: 3.9", "Programming Language :: Python :: 3.10", "Programming Language :: Python :: 3.11", "Programming Language :: Python :: 3.12", "Topic :: Software Development :: Quality Assurance", "Topic :: Software Development :: Version Control :: Git", "Topic :: Scientific/Engineering :: Artificial Intelligence",]
+dependencies = [ "click>=8.0.0", "dill>=0.3.6", "gitpython>=3.1.0", "joblib>=1.3.0", "numpy>=1.21.0", "pandas>=1.3.0", "scikit-learn>=1.1.0", "xgboost>=1.6.0", "jinja2>=3.0.0", "rich>=12.0.0", "tqdm>=4.62.0", "typing-extensions>=4.0.0; python_version<'3.10'",]
+[[project.authors]]
+name = "TechDebtGPT Team"
+email = "support@techdebtgpt.com"
 
-dependencies = [
-    "click>=8.0.0",
-    "dill>=0.3.6",
-    "gitpython>=3.1.0", 
-    "joblib>=1.3.0",
-    "numpy>=1.21.0",
-    "pandas>=1.3.0",
-    "scikit-learn>=1.1.0",
-    "xgboost>=1.6.0",
-    "jinja2>=3.0.0",
-    "rich>=12.0.0",
-    "tqdm>=4.62.0",
-    "typing-extensions>=4.0.0; python_version<'3.10'",
-]
+[[project.maintainers]]
+name = "TechDebtGPT Team"
+email = "support@techdebtgpt.com"
+
+[project.license]
+text = "Apache-2.0"
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=6.0.0",
-    "pytest-cov>=2.12.0", 
-    "black>=22.0.0",
-    "isort>=5.10.0",
-    "flake8>=4.0.0",
-    "mypy>=0.950",
-    "pre-commit>=2.15.0",
-]
-html = [
-    "matplotlib>=3.5.0",
-    "seaborn>=0.11.0", 
-    "plotly>=5.0.0",
-]
+dev = [ "pytest>=6.0.0", "pytest-cov>=2.12.0", "black>=22.0.0", "isort>=5.10.0", "flake8>=4.0.0", "mypy>=0.950", "pre-commit>=2.15.0",]
+html = [ "matplotlib>=3.5.0", "seaborn>=0.11.0", "plotly>=5.0.0",]
 
 [project.urls]
 Homepage = "https://github.com/techdebtgpt/maintsight"
@@ -74,19 +37,15 @@ maintsight = "cli:main"
 ms = "cli:main"
 
 [tool.setuptools]
-packages = ["services", "models", "utils"]
-py-modules = ["cli", "__init__"]
-
-[tool.setuptools.package-data]
-models = ["*.pkl", "*.json"]
-utils = ["templates/*.html"]
+packages = [ "services", "models", "utils",]
+py-modules = [ "cli", "__init__",]
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
-include = '\.pyi?$'
+target-version = [ "py38",]
+include = "\\.pyi?$"
 
-[tool.isort] 
+[tool.isort]
 profile = "black"
 multi_line_output = 3
 line_length = 88
@@ -97,7 +56,11 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 
+[tool.setuptools.package-data]
+models = [ "*.pkl", "*.json",]
+utils = [ "templates/*.html",]
+
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q --strict-markers"
-testpaths = ["tests"]
+testpaths = [ "tests",]
