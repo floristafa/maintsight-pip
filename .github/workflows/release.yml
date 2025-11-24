@@ -120,7 +120,28 @@ jobs:
           echo "New version: $NEW_VERSION"
 
           # Update pyproject.toml
-          python -c "import toml; data=toml.load('pyproject.toml'); data['project']['version']='$NEW_VERSION'; open('pyproject.toml','w').write(toml.dump(data))"
+          cat > update_version.py << 'EOF'
+          import toml
+          import sys
+          
+          version = sys.argv[1]
+          
+          # Read current pyproject.toml
+          with open('pyproject.toml', 'r') as f:
+              data = toml.load(f)
+          
+          # Update version
+          data['project']['version'] = version
+          
+          # Write updated pyproject.toml
+          with open('pyproject.toml', 'w') as f:
+              toml.dump(data, f)
+          
+          print(f"Updated pyproject.toml version to {version}")
+          EOF
+          
+          python update_version.py "$NEW_VERSION"
+          rm update_version.py
           
           # Update __init__.py if it exists
           if [ -f "__init__.py" ]; then
