@@ -40,7 +40,7 @@ jobs:
           node-version: '18'
 
       - name: Install MaintSight
-        run: npm install -g @techdebtgpt/maintsight
+        run: pip install maintsight
 
       - name: Run risk analysis
         run: |
@@ -78,9 +78,9 @@ Add to `.gitlab-ci.yml`:
 ```yaml
 maintenance-check:
   stage: test
-  image: node:18
+  image: python:3.9
   before_script:
-    - npm install -g @techdebtgpt/maintsight
+    - pip install maintsight
   script:
     - maintsight predict --threshold 0.1 --format markdown > risk-report.md
   artifacts:
@@ -102,7 +102,7 @@ pipeline {
   stages {
     stage('Maintenance Check') {
       steps {
-        sh 'npm install -g @techdebtgpt/maintsight'
+        sh 'pip install maintsight'
         sh 'maintsight predict --format json > risk-report.json'
 
         script {

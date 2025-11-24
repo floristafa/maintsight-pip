@@ -27,10 +27,10 @@ dev = [ "pytest>=6.0.0", "pytest-cov>=2.12.0", "black>=22.0.0", "isort>=5.10.0",
 html = [ "matplotlib>=3.5.0", "seaborn>=0.11.0", "plotly>=5.0.0",]
 
 [project.urls]
-Homepage = "https://github.com/techdebtgpt/maintsight"
-Documentation = "https://github.com/techdebtgpt/maintsight#readme"
-Repository = "https://github.com/techdebtgpt/maintsight"
-"Bug Tracker" = "https://github.com/techdebtgpt/maintsight/issues"
+Homepage = "https://github.com/floristafa/maintsight-pip"
+Documentation = "https://github.com/floristafa/maintsight-pip#readme"
+Repository = "https://github.com/floristafa/maintsight-pip"
+"Bug Tracker" = "https://github.com/floristafa/maintsight-pip/issues"
 
 [project.scripts]
 maintsight = "cli:main"

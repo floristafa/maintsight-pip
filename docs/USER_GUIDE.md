@@ -19,14 +19,13 @@ This guide provides comprehensive instructions for using MaintSight to analyze a
 You can install MaintSight globally to use it as a command-line tool.
 
 ```bash
-# Using npm
-npm install -g @techdebtgpt/maintsight
+# Using pip (recommended)
+pip install maintsight
 
-# Using yarn
-yarn global add @techdebtgpt/maintsight
-
-# Using pnpm
-pnpm add -g @techdebtgpt/maintsight
+# From source
+git clone https://github.com/floristafa/maintsight-pip.git
+cd maintsight-pip
+pip install -e .
 ```
 
 ## 🚀 Quick Start
@@ -207,4 +206,4 @@ maintsight predict --format json --threshold 0.2 || exit 1
 
 - View command help: `maintsight --help`
 - View subcommand help: `maintsight predict --help`
-- Report issues: [GitHub Issues](https://github.com/techdebtgpt/maintsight/issues)
+- Report issues: [GitHub Issues](https://github.com/floristafa/maintsight-pip/issues)

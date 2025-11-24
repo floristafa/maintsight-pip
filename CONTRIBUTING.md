@@ -56,17 +56,22 @@ Unsure where to begin contributing? You can start by looking through these `begi
 
 ```bash
 # Clone your fork
-git clone https://github.com/your-username/maintsight-cli.git
-cd maintsight-cli
+git clone https://github.com/your-username/maintsight-pip.git
+cd maintsight-pip
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
-npm install
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
-# Build the project
-npm run build
+# Install in development mode
+pip install -e .
 
 # Run tests
-npm test
+pytest tests/
 ```
 
 ### Development Workflow

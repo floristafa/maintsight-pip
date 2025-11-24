@@ -1,32 +1,31 @@
 # MaintSight API Reference
 
-MaintSight provides a programmatic API for integrating maintenance degradation prediction into your applications.
+MaintSight provides a Python API for integrating maintenance degradation prediction into your applications.
 
 ## Installation
 
 ```bash
-npm install @techdebtgpt/maintsight
+pip install maintsight
 ```
 
 ## Basic Usage
 
-```typescript
-import { GitCommitCollector, FeatureEngineer, XGBoostPredictor } from 'maintsight';
+```python
+from services import GitCommitCollector, FeatureEngineer, XGBoostPredictor
 
-async function analyzeMaintenance(repoPath: string) {
-  // Load the model
-  const predictor = new XGBoostPredictor();
-  predictor.loadModel(); // Uses built-in model
+def analyze_maintenance(repo_path: str):
+    # Load the model
+    predictor = XGBoostPredictor()
+    predictor.load_model()  # Uses built-in model
 
-  // Collect git data
-  const collector = new GitCommitCollector(repoPath, 'main', 150, true);
-  const commitData = collector.fetchCommitData(10000);
+    # Collect git data
+    collector = GitCommitCollector(repo_path, 'main', 150, True)
+    commit_data = collector.fetch_commit_data(10000)
 
-  // Run predictions
-  const predictions = predictor.predict(commitData);
+    # Run predictions
+    predictions = predictor.predict(commit_data)
 
-  return predictions;
-}
+    return predictions
 ```
 
 ## API Classes
@@ -35,17 +34,19 @@ async function analyzeMaintenance(repoPath: string) {
 
 Collects and processes git commit history.
 
-```typescript
-class GitCommitCollector {
-  constructor(
-    repoPath: string,
-    branch: string = 'main',
-    windowSizeDays: number = 150,
-    onlyExistingFiles: boolean = true,
-  );
+```python
+class GitCommitCollector:
+    def __init__(
+        self,
+        repo_path: str,
+        branch: str = 'main',
+        window_size_days: int = 150,
+        only_existing_files: bool = True,
+    ):
+        ...
 
-  fetchCommitData(maxCommits?: number = 10000): FileCommitData[];
-}
+    def fetch_commit_data(self, max_commits: int = 10000) -> List[CommitData]:
+        ...
 ```
 
 ### FeatureEngineer

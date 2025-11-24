@@ -184,9 +184,9 @@ jobs:
 
       - uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          python-version: '3.9'
 
-      - run: npm install -g @techdebtgpt/maintsight
+      - run: pip install maintsight
 
       - name: Check maintenance risk
         run: |
@@ -206,9 +206,9 @@ jobs:
 
 ```yaml
 maintenance-check:
-  image: node:18
+  image: python:3.9
   script:
-    - npm install -g @techdebtgpt/maintsight
+    - pip install maintsight
     - maintsight predict --threshold 0.1 --format markdown
   artifacts:
     reports:

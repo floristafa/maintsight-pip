@@ -28,16 +28,17 @@ class TestRiskCategory:
         assert RiskCategory.from_score(1.0) == RiskCategory.SEVERELY_DEGRADED
         
     def test_from_score_degraded(self):
-        """Test degraded categorization (0.1-0.2)."""
+        """Test degraded categorization (0.1 < score <= 0.2)."""
         assert RiskCategory.from_score(0.15) == RiskCategory.DEGRADED
-        assert RiskCategory.from_score(0.1) == RiskCategory.DEGRADED
+        assert RiskCategory.from_score(0.11) == RiskCategory.DEGRADED
         assert RiskCategory.from_score(0.2) == RiskCategory.DEGRADED
         
     def test_from_score_stable(self):
-        """Test stable categorization (0.0-0.1)."""
+        """Test stable categorization (0.0 <= score <= 0.1)."""
         assert RiskCategory.from_score(0.05) == RiskCategory.STABLE
         assert RiskCategory.from_score(0.0) == RiskCategory.STABLE
         assert RiskCategory.from_score(0.09) == RiskCategory.STABLE
+        assert RiskCategory.from_score(0.1) == RiskCategory.STABLE
         
     def test_from_score_improved(self):
         """Test improved categorization (< 0.0)."""

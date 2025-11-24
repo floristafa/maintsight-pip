@@ -32,7 +32,7 @@ MaintSight analyzes your git repository's commit history and code patterns to pr
 - 🔍 **Threshold Filtering**: Focus on degraded files only
 - 🌐 **Interactive HTML Reports**: Rich, interactive analysis with visualizations
 - ⚡ **Fast & Efficient**: Analyzes hundreds of files in seconds
-- 🛠️ **Easy Integration**: Simple CLI interface and npm package
+- 🛠️ **Easy Integration**: Simple CLI interface and pip package
 
 ## 🚀 Quick Start
 
@@ -41,35 +41,35 @@ MaintSight analyzes your git repository's commit history and code patterns to pr
 pip install maintsight
 
 # Run predictions on current directory (generates interactive HTML report)
-python3 maintsight_complete.py
+maintsight predict
 
 # Show only degraded files with threshold
-python3 maintsight_complete.py -f summary
+maintsight predict --threshold 0.1
 
 # Generate JSON output
-python3 maintsight_complete.py -f json
+maintsight predict --format json
 
 # Analyze specific repository
-python3 maintsight_complete.py /path/to/repo
+maintsight predict /path/to/repo
 ```
 
 ## 📦 Installation
 
-### From PyPI (Coming Soon)
+### From PyPI (Recommended)
 
 ```bash
 pip install maintsight
 ```
 
-### From Source (Current)
+### From Source
 
 ```bash
-git clone https://github.com/techdebtgpt/maintsight.git
+git clone https://github.com/floristafa/maintsight-pip.git
 cd maintsight-pip
 pip install -r requirements.txt
 
-# Run the complete version
-python3 maintsight_complete.py
+# Install in development mode
+pip install -e .
 ```
 
 ### Development Installation
@@ -84,32 +84,32 @@ pip install -e ".[dev]"
 
 ```bash
 # Analyze current directory (generates HTML report)
-python3 maintsight_complete.py
+maintsight predict
 
 # Analyze specific repository
-python3 maintsight_complete.py /path/to/repo
+maintsight predict /path/to/repo
 
-# Generate summary output
-python3 maintsight_complete.py -f summary
+# Generate summary output with threshold
+maintsight predict --threshold 0.1
 ```
 
 ### Advanced Options
 
 ```bash
 # Analyze specific branch
-python3 maintsight_complete.py -b develop
+maintsight predict --branch develop
 
 # Limit commit analysis window
-python3 maintsight_complete.py -w 90  # Analyze last 90 days
+maintsight predict --window-size-days 90
 
 # Limit number of commits
-python3 maintsight_complete.py -n 5000
+maintsight predict --max-commits 5000
 
 # Generate JSON output
-python3 maintsight_complete.py -f json
+maintsight predict --format json
 
 # All options together
-python3 maintsight_complete.py /path/to/repo -b main -w 150 -n 1000 -f html
+maintsight predict /path/to/repo --branch main --window-size-days 150 --max-commits 1000 --format html
 ```
 
 ### Python API Usage
@@ -188,40 +188,43 @@ Always generated automatically in `.maintsight/` folder with:
 
 ## 📚 Command Reference
 
-### `maintsight_complete.py`
+### `maintsight predict`
 
 Analyze repository and predict maintenance degradation.
 
 ```bash
-python3 maintsight_complete.py [path] [options]
+maintsight predict [PATH] [OPTIONS]
 ```
 
 **Arguments:**
 
-- `path` - Repository path (default: current directory)
+- `PATH` - Repository path (default: current directory)
 
 **Options:**
 
 - `-b, --branch BRANCH` - Git branch to analyze (default: "main")
 - `-n, --max-commits N` - Maximum commits to analyze (default: 1000)
-- `-w, --window-days N` - Time window in days for analysis (default: 150)
-- `-f, --format FORMAT` - Output format: json|summary|html (default: "html")
+- `-w, --window-size-days N` - Time window in days for analysis (default: 150)
+- `-f, --format FORMAT` - Output format: json|csv|markdown|html (default: "html")
+- `-t, --threshold FLOAT` - Only show files above degradation threshold
+- `-o, --output PATH` - Output file path
+- `-v, --verbose` - Verbose output
 - `-h, --help` - Show help information
 
 ### Examples
 
 ```bash
 # Generate HTML report with default settings
-python3 maintsight_complete.py
+maintsight predict
 
 # Analyze last 90 days on develop branch
-python3 maintsight_complete.py -b develop -w 90
+maintsight predict --branch develop --window-size-days 90
 
 # Get JSON output for processing
-python3 maintsight_complete.py -f json > results.json
+maintsight predict --format json --output results.json
 
-# Show summary for quick overview
-python3 maintsight_complete.py -f summary
+# Show only degraded files
+maintsight predict --threshold 0.1
 ```
 
 ## 🧠 Model Information
@@ -259,7 +262,7 @@ The model considers multiple dimensions of code evolution:
 
 ```bash
 # Clone repository
-git clone https://github.com/techdebtgpt/maintsight.git
+git clone https://github.com/floristafa/maintsight-pip.git
 cd maintsight-pip
 
 # Install in development mode
@@ -268,8 +271,8 @@ pip install -e ".[dev]"
 # Or install requirements directly
 pip install -r requirements.txt
 
-# Run the main script
-python3 maintsight_complete.py
+# Test the CLI
+maintsight predict --help
 ```
 
 ### Project Structure
@@ -300,7 +303,7 @@ maintsight-pip/
 ├── tests/                         # pytest tests
 │   ├── __init__.py
 │   └── test_risk_category.py
-├── maintsight_complete.py         # Standalone complete script
+├── cli.py                         # Main CLI entry point
 ├── pyproject.toml                 # Modern Python packaging
 ├── setup.py                       # Legacy setuptools support
 ├── requirements.txt               # Runtime dependencies
@@ -372,9 +375,9 @@ mypy maintsight/
 
 ## 🐛 Bug Reports
 
-Found a bug? Please [open an issue](https://github.com/techdebtgpt/maintsight/issues/new) with:
+Found a bug? Please [open an issue](https://github.com/floristafa/maintsight-pip/issues/new) with:
 
-- MaintSight version (`python3 maintsight_complete.py --help`)
+- MaintSight version (`maintsight --help`)
 - Python version
 - Operating system
 - Steps to reproduce

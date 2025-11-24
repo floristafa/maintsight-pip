@@ -22,7 +22,7 @@ If you are new to MaintSight, we recommend starting with the [**User Guide**](./
 
 ## 🔗 Resources
 
-- **📦 GitHub**: [github.com/techdebtgpt/maintsight](https://github.com/techdebtgpt/maintsight)
-- **💬 Community**: [GitHub Discussions](https://github.com/techdebtgpt/maintsight/discussions)
-- **🐛 Report Issues**: [GitHub Issues](https://github.com/techdebtgpt/maintsight/issues)
-- **📊 npm**: [npmjs.com/package/maintsight](https://www.npmjs.com/package/maintsight)
+- **📦 GitHub**: [github.com/floristafa/maintsight-pip](https://github.com/floristafa/maintsight-pip)
+- **💬 Community**: [GitHub Discussions](https://github.com/floristafa/maintsight-pip/discussions)
+- **🐛 Report Issues**: [GitHub Issues](https://github.com/floristafa/maintsight-pip/issues)
+- **📦 PyPI**: [pypi.org/project/maintsight](https://pypi.org/project/maintsight)
