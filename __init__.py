@@ -6,7 +6,7 @@ risk using machine learning. It analyzes commit patterns, code churn, and collab
 metrics to identify files that may need attention.
 """
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 __author__ = "TechDebtGPT Team"
 __email__ = "support@techdebtgpt.com"
 __license__ = "Apache-2.0"
