@@ -3,7 +3,7 @@ requires = [ "setuptools>=61.0", "wheel",]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "maintsight"
+name = "maintsight-pip"
 version = "0.2.0"
 description = "AI-powered maintenance risk predictor for git repositories using XGBoost"
 readme = "README.md"
