@@ -335,17 +335,27 @@ def _generate_commit_stats_sections(predictions, commit_data):
     if commit_data is None or len(commit_data) == 0:
         return ""
     
-    # Calculate commit statistics  
+    # Get actual repository commit count (not sum of per-file commits)
+    result = subprocess.run(['git', 'rev-list', '--count', 'HEAD'], 
+                          capture_output=True, text=True, check=True)
+    total_commits = int(result.stdout.strip())
+    
+    # Get actual repository bug fix commit count
+    result = subprocess.run(['git', 'log', '--pretty=format:%s'], 
+                          capture_output=True, text=True, check=True)
+    messages = result.stdout.strip().split('\n') if result.stdout.strip() else []
+    bug_commits = sum(1 for msg in messages 
+                     if any(kw in msg.lower() for kw in ['fix', 'bug', 'patch', 'hotfix']))
+    
+    # Calculate file-level statistics for avg commits per file
     if hasattr(commit_data, 'iterrows'):
         # It's a pandas DataFrame
-        total_commits = commit_data['commits'].sum()
-        bug_commits = commit_data['bug_commits'].sum()
+        file_commits = commit_data['commits'].sum()
     else:
         # It's a list of objects
-        total_commits = sum(getattr(row, 'commits', 0) for row in commit_data)
-        bug_commits = sum(getattr(row, 'bug_commits', 0) for row in commit_data)
+        file_commits = sum(getattr(row, 'commits', 0) for row in commit_data)
     
-    avg_commits_per_file = total_commits / len(commit_data) if len(commit_data) > 0 else 0
+    avg_commits_per_file = file_commits / len(commit_data) if len(commit_data) > 0 else 0
     bug_fix_rate = (bug_commits / total_commits * 100) if total_commits > 0 else 0
     
     # File type distribution
