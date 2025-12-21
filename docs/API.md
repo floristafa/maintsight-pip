@@ -92,7 +92,7 @@ interface CommitInfo {
 
 interface RiskPrediction {
   module: string;
-  degradation_score: number;
+  normalized_score: number;
   raw_prediction: number;
   risk_category: 'improved' | 'stable' | 'degraded' | 'severely_degraded';
 }
@@ -142,7 +142,7 @@ async function analyzeAndSaveResults(repoPath: string, outputPath: string) {
     const predictions = predictor.predict(commitData);
 
     // Filter degraded files
-    const degradedFiles = predictions.filter((p) => p.degradation_score > 0.1);
+    const degradedFiles = predictions.filter((p) => p.normalized_score > 0.1);
 
     // Save results
     await fs.writeFile(outputPath, JSON.stringify(degradedFiles, null, 2), 'utf-8');

@@ -138,7 +138,7 @@ def calculate_folder_stats(node: FileTreeNode) -> Dict[str, Any]:
         if not n.children or len(n.children) == 0:
             # This is a file
             if n.prediction:
-                total_score += n.prediction.degradation_score
+                total_score += n.prediction.normalized_score
                 file_count += 1
         else:
             # This is a folder, traverse children
@@ -171,7 +171,7 @@ def generate_tree_html(node: FileTreeNode, depth: int = 0) -> str:
     if not node.children or len(node.children) == 0:
         # This is a file
         if node.prediction:
-            score = node.prediction.degradation_score
+            score = node.prediction.normalized_score
             category = node.prediction.risk_category.value
             category_class = category.replace('_', '-')
             indent_style = f'style="margin-left: {depth * 20}px;"'
@@ -267,9 +267,9 @@ def format_as_html(
     
     # Calculate statistics
     total_files = len(predictions)
-    mean_score = sum(p.degradation_score for p in predictions) / total_files
+    mean_score = sum(p.normalized_score for p in predictions) / total_files
     std_dev = math.sqrt(
-        sum((p.degradation_score - mean_score) ** 2 for p in predictions) / total_files
+        sum((p.normalized_score - mean_score) ** 2 for p in predictions) / total_files
     )
     
     # Calculate risk distribution
@@ -287,7 +287,7 @@ def format_as_html(
     commit_stats = calculate_commit_stats(commit_data)
     
     # Sort predictions by risk score (highest first)
-    sorted_predictions = sorted(predictions, key=lambda x: x.degradation_score, reverse=True)
+    sorted_predictions = sorted(predictions, key=lambda x: x.normalized_score, reverse=True)
     
     # Build file tree structure
     file_tree = build_file_tree(sorted_predictions)
@@ -306,7 +306,7 @@ def format_as_html(
         ext = Path(p.module).suffix.lower() or '.no-ext'
         if ext not in risk_by_type:
             risk_by_type[ext] = {'sum': 0, 'count': 0}
-        risk_by_type[ext]['sum'] += p.degradation_score
+        risk_by_type[ext]['sum'] += p.normalized_score
         risk_by_type[ext]['count'] += 1
         
     top_risk_by_type = sorted(
@@ -325,7 +325,7 @@ def format_as_html(
     # Generate top files HTML
     top_files_html = ''
     for p in sorted_predictions[:30]:
-        score = p.degradation_score
+        score = p.normalized_score
         category_class = p.risk_category.value.replace('_', '-')
         top_files_html += f'''
                   <div class="top-file-item {category_class}">

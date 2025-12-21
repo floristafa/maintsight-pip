@@ -82,7 +82,7 @@ maintsight predict [path] [options]
 [
   {
     "module": "src/services/user.service.ts",
-    "degradation_score": 0.2345,
+    "normalized_score": 0.2345,
     "raw_prediction": 0.2345,
     "risk_category": "severely_degraded"
   }
@@ -92,7 +92,7 @@ maintsight predict [path] [options]
 ### CSV Format
 
 ```csv
-module,degradation_score,raw_prediction,risk_category
+module,normalized_score,raw_prediction,risk_category
 src/services/user.service.ts,0.2345,0.2345,severely_degraded
 src/controllers/auth.controller.ts,-0.0567,-0.0567,improved
 ```

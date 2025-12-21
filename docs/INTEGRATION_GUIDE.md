@@ -64,7 +64,7 @@ jobs:
 
       - name: Fail if severe degradation
         run: |
-          severe=$(maintsight predict -f json | jq '[.[] | select(.degradation_score > 0.3)] | length')
+          severe=$(maintsight predict -f json | jq '[.[] | select(.normalized_score > 0.3)] | length')
           if [ "$severe" -gt "0" ]; then
             echo "❌ Found $severe files with severe degradation!"
             exit 1
@@ -107,7 +107,7 @@ pipeline {
 
         script {
           def report = readJSON file: 'risk-report.json'
-          def degraded = report.findAll { it.degradation_score > 0.1 }
+          def degraded = report.findAll { it.normalized_score > 0.1 }
 
           if (degraded.size() > 0) {
             echo "⚠️  Found ${degraded.size()} degraded files"
@@ -184,7 +184,7 @@ async function checkMaintenanceDegradation() {
   const commitData = collector.fetchCommitData(10000);
 
   const predictions = predictor.predict(commitData);
-  const degraded = predictions.filter((p) => p.degradation_score > 0.1);
+  const degraded = predictions.filter((p) => p.normalized_score > 0.1);
 
   if (degraded.length > 0) {
     console.warn(`⚠️  ${degraded.length} degraded files detected`);
@@ -193,7 +193,7 @@ async function checkMaintenanceDegradation() {
     await fs.writeFile('degraded-files.json', JSON.stringify(degraded, null, 2));
 
     // Optionally fail the build
-    if (degraded.some((f) => f.degradation_score > 0.3)) {
+    if (degraded.some((f) => f.normalized_score > 0.3)) {
       process.exit(1);
     }
   }
@@ -221,7 +221,7 @@ async function sendSlackAlert(degradedFiles) {
         color: 'warning',
         fields: degradedFiles.slice(0, 5).map((f) => ({
           title: f.module,
-          value: `Degradation: ${f.degradation_score.toFixed(3)}`,
+          value: `Degradation: ${f.normalized_score.toFixed(3)}`,
           short: true,
         })),
       },
@@ -243,8 +243,8 @@ maintsight predict -f json > "reports/degradation-${DATE}.json"
 # Generate trend data
 jq -s '[.[] | {
   date: input_filename | split("/")[-1] | split(".")[0] | split("-")[1:4] | join("-"),
-  degraded: [.[] | select(.degradation_score > 0.1)] | length,
-  severely_degraded: [.[] | select(.degradation_score > 0.2)] | length,
+  degraded: [.[] | select(.normalized_score > 0.1)] | length,
+  severely_degraded: [.[] | select(.normalized_score > 0.2)] | length,
   total: length
 }]' reports/degradation-*.json > trend-data.json
 ```

@@ -10,22 +10,22 @@ class RiskPrediction:
     
     module: str
     risk_category: RiskCategory
-    degradation_score: float
+    normalized_score: float
     raw_prediction: float
     
     @property
-    def is_degraded(self) -> bool:
-        """Check if file is in a degraded state (degraded or severely degraded)."""
-        return self.risk_category in [RiskCategory.DEGRADED, RiskCategory.SEVERELY_DEGRADED]
+    def is_risky(self) -> bool:
+        """Check if file is in a risky state (high or critical)."""
+        return self.risk_category in [RiskCategory.HIGH, RiskCategory.CRITICAL]
         
     @property
     def needs_attention(self) -> bool:
-        """Alias for is_degraded for readability."""
-        return self.is_degraded
+        """Alias for is_risky for readability."""
+        return self.is_risky
         
     def __str__(self) -> str:
         """String representation of the prediction."""
         return (
             f"{self.module}: {self.risk_category.display_name} "
-            f"(score: {self.degradation_score:.4f})"
+            f"(score: {self.normalized_score:.4f})"
         )

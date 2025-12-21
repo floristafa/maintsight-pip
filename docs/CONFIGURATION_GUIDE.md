@@ -195,7 +195,7 @@ jobs:
 
       - name: Fail if severe degradation
         run: |
-          severe=$(jq '[.[] | select(.degradation_score > 0.2)] | length' risk-report.json)
+          severe=$(jq '[.[] | select(.normalized_score > 0.2)] | length' risk-report.json)
           if [ "$severe" -gt "0" ]; then
             echo "Found $severe severely degraded files!"
             exit 1

@@ -130,21 +130,25 @@ def _open_html_report(html_path: str) -> None:
 @main.command()
 @click.argument('path', default='.', type=click.Path(exists=True))
 @click.option('-b', '--branch', default='main', help='Git branch to analyze')
-@click.option('-n', '--max-commits', default=10000, help='Maximum commits to analyze')
-@click.option('-w', '--window-size-days', default=150, help='Time window in days for analysis')
+@click.option('-mode', '--mode', type=click.Choice(['conservative', 'moderate', 'aggressive']),
+              default='moderate',
+              help='Post-processing mode')
+@click.option('-model', '--model', type=click.Path(exists=True),default='models/xgboost_model.pkl', help='Path to XGBoost model file')
+@click.option('-metadata', '--metadata', type=click.Path(exists=True),default='models/xgboost_model_metadata.json', help='Path to XGBoost model metadata file')
 @click.option('-o', '--output', type=click.Path(), help='Output file path')
 @click.option('-f', '--format', 
               type=click.Choice(['json', 'csv', 'markdown', 'html']),
               default='html',
               help='Output format')
 @click.option('-t', '--threshold', type=float, default=0.0,
-              help='Only show files above degradation threshold')
+              help='Only show files above normalized score threshold (0-100)')
 @click.option('-v', '--verbose', is_flag=True, help='Verbose output')
 def predict(
     path: str,
     branch: str,
-    max_commits: int,
-    window_size_days: int,
+    mode: str,
+    model: str,
+    metadata: str,
     output: Optional[str],
     format: str,
     threshold: float,
@@ -155,39 +159,56 @@ def predict(
     logger = Logger('MaintSight')
     
     try:
-        # Initialize services
-        if verbose:
-            logger.info("Loading XGBoost model...", '📁')
-            
-        predictor = XGBoostPredictor()
-        predictor.load_model()
         
         if verbose:
             logger.info(f"Analyzing git history (branch: {branch})...", '🔄')
             
-        # Collect git data
-        collector = GitCommitCollector(
-            repo_path=path,
-            branch=branch,
-            window_size_days=window_size_days,
-            only_existing_files=True
-        )
-        
-        commit_data = collector.fetch_commit_data(max_commits)
-        
-        if not commit_data:
-            logger.error("No source files found in git history")
-            sys.exit(1)
-            
         if verbose:
-            logger.info(f"Running predictions on {len(commit_data)} files...", '🤖')
+            logger.info("Running enhanced predictions...", '🤖')
             
-        # Run predictions
-        predictions = predictor.predict(commit_data)
+        # Use clean enhanced prediction workflow  
+        try:
+            if verbose:
+                logger.info("Using enhanced prediction services", '🚀')
+            
+            # Initialize services
+            predictor = XGBoostPredictor(model_path=model, metadata_path=metadata)
+            model, metadata = predictor.load_model()
+            
+            if verbose:
+                logger.info(f"Loaded model v{metadata['version']}", '🤖')
+                logger.info(f"Using enhanced features ({len(metadata['feature_list'])} features)", '🔧')
+                    # Collect git data
+            collector = GitCommitCollector(
+                repo_path=path,
+                branch=branch,
+                window_size_days=150,
+                only_existing_files=True
+            )
         
-        # Filter by threshold
+            commit_data = collector.fetch_commit_data()
+            # Extract features using FeatureEngineer service
+            features_df = FeatureEngineer.extract_features(path, branch, metadata['feature_list'])
+            
+            if verbose:
+                logger.info(f"Extracted features for {len(features_df)} files", '📁')
+            
+            # Run predictions using XGBoostPredictor service
+            predictions = predictor.predict_as_objects(features_df, mode)
+            
+            if verbose:
+                logger.info("Applied enhanced post-processing", '✨')
+                
+        except Exception as e:
+            logger.error(f"Prediction failed: {e}")
+            if verbose:
+                import traceback
+                traceback.print_exc()
+            sys.exit(1)
+        
+        # Filter by threshold (0-100 scale)
         if threshold > 0:
-            predictions = [p for p in predictions if p.degradation_score >= threshold]
+            predictions = [p for p in predictions if p.normalized_score >= threshold]
             
         if verbose:
             logger.success(f"Predictions complete: {len(predictions)} files analyzed", '✅')
@@ -198,17 +219,18 @@ def predict(
             for pred in predictions:
                 output_data.append({
                     'module': pred.module,
-                    'degradation_score': round(pred.degradation_score, 4),
+                    'risk_level': pred.risk_category.display_name,
+                    'normalized_score': round(pred.normalized_score, 2),  # 0-100 score
                     'raw_prediction': round(pred.raw_prediction, 4),
                     'risk_category': pred.risk_category.value
                 })
             result = json.dumps(output_data, indent=2)
             
         elif format == 'csv':
-            lines = ['module,degradation_score,raw_prediction,risk_category']
+            lines = ['module,risk_level,normalized_score,raw_prediction,risk_category']
             for pred in predictions:
-                lines.append(f'"{pred.module}",{pred.degradation_score:.4f},'
-                           f'{pred.raw_prediction:.4f},{pred.risk_category.value}')
+                lines.append(f'"{pred.module}",{pred.risk_category.display_name},'
+                           f'{pred.normalized_score:.2f},{pred.raw_prediction:.4f},{pred.risk_category.value}')
             result = '\n'.join(lines)
             
         elif format == 'markdown':
@@ -258,8 +280,8 @@ def _format_markdown_report(predictions, repo_name: str) -> str:
     """Format predictions as markdown report."""
     from datetime import datetime
     
-    # Sort by degradation score
-    sorted_preds = sorted(predictions, key=lambda p: p.degradation_score, reverse=True)
+    # Sort by normalized score (0-100)
+    sorted_preds = sorted(predictions, key=lambda p: p.normalized_score, reverse=True)
     
     # Calculate distribution
     dist = {}
@@ -279,27 +301,27 @@ def _format_markdown_report(predictions, repo_name: str) -> str:
 
 | Risk Level | Count | Percentage |
 |------------|-------|------------|
-| Severely Degraded | {dist.get('severely_degraded', 0)} | {(dist.get('severely_degraded', 0)/total*100):.1f}% |
-| Degraded | {dist.get('degraded', 0)} | {(dist.get('degraded', 0)/total*100):.1f}% |
-| Stable | {dist.get('stable', 0)} | {(dist.get('stable', 0)/total*100):.1f}% |
-| Improved | {dist.get('improved', 0)} | {(dist.get('improved', 0)/total*100):.1f}% |
+| Critical | {dist.get('critical', 0)} | {(dist.get('critical', 0)/total*100):.1f}% |
+| High | {dist.get('high', 0)} | {(dist.get('high', 0)/total*100):.1f}% |
+| Medium | {dist.get('medium', 0)} | {(dist.get('medium', 0)/total*100):.1f}% |
+| Low | {dist.get('low', 0)} | {(dist.get('low', 0)/total*100):.1f}% |
 
 ## Top 20 High-Risk Files
 
-| File | Degradation Score | Category |
-|------|------------------|----------|
+| File | Risk Level | Normalized Score | Raw Score | Category |
+|------|------------|------------------|-----------|----------|
 """
     
     for pred in sorted_preds[:20]:
-        report += f"| `{pred.module}` | {pred.degradation_score:.4f} | {pred.risk_category.value} |\n"
+        report += f"| `{pred.module}` | {pred.risk_category.display_name} | {pred.normalized_score:.2f} | {pred.raw_prediction:.4f} | {pred.risk_category.value} |\n"
         
     report += """
 ## Risk Categories
 
-- **Severely Degraded (> 0.2)**: Critical attention needed - code quality declining rapidly
-- **Degraded (0.1-0.2)**: Moderate degradation - consider refactoring
-- **Stable (0.0-0.1)**: Code quality stable - minimal degradation  
-- **Improved (< 0.0)**: Code quality improving - good maintenance practices
+- **Critical Risk (90-100)**: Immediate action required - critical maintenance issues
+- **High Risk (70-89)**: Moderate degradation - consider refactoring
+- **Medium Risk (50-69)**: Some attention needed - monitor for issues  
+- **Low Risk (0-49)**: Good code quality - minimal maintenance needed
 
 ---
 *Generated by MaintSight using XGBoost*
@@ -341,7 +363,7 @@ def _generate_commit_stats_sections(predictions, commit_data):
         ext = Path(pred.module).suffix.lower() or '.no-ext'
         if ext not in risk_by_type:
             risk_by_type[ext] = {'sum': 0, 'count': 0}
-        risk_by_type[ext]['sum'] += pred.degradation_score
+        risk_by_type[ext]['sum'] += pred.normalized_score
         risk_by_type[ext]['count'] += 1
     
     avg_risk_by_type = [
@@ -379,9 +401,8 @@ def _generate_commit_stats_sections(predictions, commit_data):
                     elif isinstance(author_names, str) and author_names.strip():
                         all_authors.add(author_names.strip())
     except Exception:
-        # Fallback: try to get at least one author if possible
-        if len(commit_data) > 0:
-            all_authors.add("fstafa@ritech.co")  # Use known author as fallback
+        # If we can't extract authors, continue with empty set
+        pass
     
     authors_list = sorted(list(all_authors))
     
@@ -434,7 +455,7 @@ def _generate_commit_stats_sections(predictions, commit_data):
                     <div class="author-avatar">{author[0].upper()}</div>
                     <div class="author-name">{author}</div>
                 </div>'''
-                    for author in (authors_list[:20] if authors_list else ['fstafa@ritech.co'])  # Fallback author
+                    for author in (authors_list[:20] if authors_list else [])
                 ])}
             </div>
         </div>
@@ -462,18 +483,18 @@ def _format_html_report(predictions, repo_name: str, commit_data=None) -> str:
     
     # Calculate statistics
     total_files = len(predictions)
-    severely_degraded = len([p for p in predictions if p.risk_category.value == 'severely_degraded'])
-    degraded = len([p for p in predictions if p.risk_category.value == 'degraded'])
-    stable = len([p for p in predictions if p.risk_category.value == 'stable'])
-    improved = len([p for p in predictions if p.risk_category.value == 'improved'])
+    critical = len([p for p in predictions if p.risk_category.value == RiskCategory.CRITICAL.value])
+    high = len([p for p in predictions if p.risk_category.value == RiskCategory.HIGH.value])
+    medium = len([p for p in predictions if p.risk_category.value == RiskCategory.MEDIUM.value])
+    low = len([p for p in predictions if p.risk_category.value == RiskCategory.LOW.value])
     
     # Calculate mean score and std dev
-    mean_score = sum(p.degradation_score for p in predictions) / total_files if total_files > 0 else 0
-    variance = sum((p.degradation_score - mean_score) ** 2 for p in predictions) / total_files if total_files > 0 else 0
+    mean_score = sum(p.normalized_score for p in predictions) / total_files if total_files > 0 else 0
+    variance = sum((p.normalized_score - mean_score) ** 2 for p in predictions) / total_files if total_files > 0 else 0
     std_dev = variance ** 0.5
     
     # Sort predictions by risk score (highest first)
-    sorted_preds = sorted(predictions, key=lambda p: p.degradation_score, reverse=True)
+    sorted_preds = sorted(predictions, key=lambda p: p.normalized_score, reverse=True)
     
     # Build file tree structure
     def build_file_tree():
@@ -498,8 +519,8 @@ def _format_html_report(predictions, repo_name: str, commit_data=None) -> str:
         def traverse(d):
             nonlocal total_score, file_count
             for key, value in d.items():
-                if hasattr(value, 'degradation_score'):  # It's a prediction object (file)
-                    total_score += value.degradation_score
+                if hasattr(value, 'normalized_score'):  # It's a prediction object (file)
+                    total_score += value.normalized_score
                     file_count += 1
                 elif isinstance(value, dict):  # It's a folder
                     traverse(value)
@@ -507,15 +528,15 @@ def _format_html_report(predictions, repo_name: str, commit_data=None) -> str:
         traverse(folder_dict)
         avg_score = total_score / file_count if file_count > 0 else 0
         
-        # Determine category
-        if avg_score > 0.2:
-            category = 'severely-degraded'
-        elif avg_score > 0.1:
-            category = 'degraded'
-        elif avg_score > 0.0:
-            category = 'stable'
+        # Determine category based on 0-100 scale
+        if avg_score >= 90:
+            category = 'critical'
+        elif avg_score >= 70:
+            category = 'high'
+        elif avg_score >= 50:
+            category = 'medium'
         else:
-            category = 'improved'
+            category = 'low'
             
         return avg_score, file_count, category
     
@@ -525,12 +546,12 @@ def _format_html_report(predictions, repo_name: str, commit_data=None) -> str:
         for name, content in sorted(tree_dict.items()):
             indent_style = f"style='margin-left: {depth * 20}px;'"
             
-            if hasattr(content, 'degradation_score'):  # It's a file
-                category_class = content.risk_category.value.replace('_', '-')
+            if hasattr(content, 'normalized_score'):  # It's a file
+                category_class = content.risk_category.value
                 html += f"""
                 <div class="tree-file {category_class}" {indent_style}>
                     <div class="file-name">📄 {name}</div>
-                    <div class="file-score">{content.degradation_score:.4f}</div>
+                    <div class="file-score">{content.normalized_score:.1f}</div>
                     <div class="risk-badge {category_class}">{content.risk_category.display_name}</div>
                 </div>"""
             elif isinstance(content, dict):  # It's a folder
@@ -544,7 +565,7 @@ def _format_html_report(predictions, repo_name: str, commit_data=None) -> str:
                         <span class="folder-stats">
                             <span class="folder-count">{file_count} files</span>
                             <span class="folder-score">{avg_score:.3f}</span>
-                            <span class="risk-badge {category}">{category.replace('-', ' ')}</span>
+                            <span class="risk-badge {category}">{category.title()}</span>
                         </span>
                     </div>
                     <div class="collapsible">
@@ -640,10 +661,10 @@ def _format_html_report(predictions, repo_name: str, commit_data=None) -> str:
             font-size: 0.8em;
             margin-top: 5px;
         }}
-        .improved {{ color: #4CAF50; }}
-        .stable {{ color: #1668dc; }}
-        .degraded {{ color: #FF9500; }}
-        .severely-degraded {{ color: #FF5757; }}
+        .low {{ color: #4CAF50; }}
+        .medium {{ color: #1668dc; }}
+        .high {{ color: #FF9500; }}
+        .critical {{ color: #FF5757; }}
         .section {{
             background: white;
             padding: 30px;
@@ -680,19 +701,19 @@ def _format_html_report(predictions, repo_name: str, commit_data=None) -> str:
             background: #f0f5ff;
             border-left-color: #1554ad;
         }}
-        .tree-folder.improved {{
+        .tree-folder.low {{
             border-left-color: #4CAF50;
             background: #E8F5E8;
         }}
-        .tree-folder.stable {{
+        .tree-folder.medium {{
             border-left-color: #1668dc;
             background: #f0f5ff;
         }}
-        .tree-folder.degraded {{
+        .tree-folder.high {{
             border-left-color: #FF9500;
             background: #FFF5E6;
         }}
-        .tree-folder.severely-degraded {{
+        .tree-folder.critical {{
             border-left-color: #FF5757;
             background: #FFE8E8;
         }}
@@ -706,19 +727,19 @@ def _format_html_report(predictions, repo_name: str, commit_data=None) -> str:
             background: #f8f9fa;
             border-left: 4px solid #ddd;
         }}
-        .tree-file.improved {{
+        .tree-file.low {{
             border-left-color: #4CAF50;
             background: #E8F5E8;
         }}
-        .tree-file.stable {{
+        .tree-file.medium {{
             border-left-color: #1668dc;
             background: #f0f5ff;
         }}
-        .tree-file.degraded {{
+        .tree-file.high {{
             border-left-color: #FF9500;
             background: #FFF5E6;
         }}
-        .tree-file.severely-degraded {{
+        .tree-file.critical {{
             border-left-color: #FF5757;
             background: #FFE8E8;
         }}
@@ -777,19 +798,19 @@ def _format_html_report(predictions, repo_name: str, commit_data=None) -> str:
             letter-spacing: 0.5px;
             margin-left: 10px;
         }}
-        .risk-badge.improved {{
+        .risk-badge.low {{
             background: #4CAF50;
             color: white;
         }}
-        .risk-badge.stable {{
+        .risk-badge.medium {{
             background: #1668dc;
             color: white;
         }}
-        .risk-badge.degraded {{
+        .risk-badge.high {{
             background: #FF9500;
             color: white;
         }}
-        .risk-badge.severely-degraded {{
+        .risk-badge.critical {{
             background: #FF5757;
             color: white;
         }}
@@ -823,19 +844,19 @@ def _format_html_report(predictions, repo_name: str, commit_data=None) -> str:
             background: #f8f9fa;
             border-left: 4px solid #ddd;
         }}
-        .top-file-item.severely-degraded {{
+        .top-file-item.critical {{
             border-left-color: #FF5757;
             background: #FFE8E8;
         }}
-        .top-file-item.degraded {{
+        .top-file-item.high {{
             border-left-color: #FF9500;
             background: #FFF5E6;
         }}
-        .top-file-item.stable {{
+        .top-file-item.medium {{
             border-left-color: #1668dc;
             background: #f0f5ff;
         }}
-        .top-file-item.improved {{
+        .top-file-item.low {{
             border-left-color: #4CAF50;
             background: #E8F5E8;
         }}
@@ -952,24 +973,24 @@ def _format_html_report(predictions, repo_name: str, commit_data=None) -> str:
 
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-number improved">{improved}</div>
-                <div class="stat-label">Improved</div>
-                <div class="stat-percentage improved">{(improved / total_files * 100):.1f}%</div>
+                <div class="stat-number low">{low}</div>
+                <div class="stat-label">Low Risk</div>
+                <div class="stat-percentage low">{(low / total_files * 100):.1f}%</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number stable">{stable}</div>
-                <div class="stat-label">Stable</div>
-                <div class="stat-percentage stable">{(stable / total_files * 100):.1f}%</div>
+                <div class="stat-number medium">{medium}</div>
+                <div class="stat-label">Medium Risk</div>
+                <div class="stat-percentage medium">{(medium / total_files * 100):.1f}%</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number degraded">{degraded}</div>
-                <div class="stat-label">Degraded</div>
-                <div class="stat-percentage degraded">{(degraded / total_files * 100):.1f}%</div>
+                <div class="stat-number high">{high}</div>
+                <div class="stat-label">High Risk</div>
+                <div class="stat-percentage high">{(high / total_files * 100):.1f}%</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number severely-degraded">{severely_degraded}</div>
-                <div class="stat-label">Severely Degraded</div>
-                <div class="stat-percentage severely-degraded">{(severely_degraded / total_files * 100):.1f}%</div>
+                <div class="stat-number critical">{critical}</div>
+                <div class="stat-label">Critical Risk</div>
+                <div class="stat-percentage critical">{(critical / total_files * 100):.1f}%</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number">{total_files}</div>
@@ -984,7 +1005,7 @@ def _format_html_report(predictions, repo_name: str, commit_data=None) -> str:
                 <div class="stat-label">Standard Deviation</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">{len([p for p in predictions if p.degradation_score > 0.1])}</div>
+                <div class="stat-number">{len([p for p in predictions if p.normalized_score >= 70])}</div>
                 <div class="stat-label">Files Needing Attention</div>
             </div>
         </div>
@@ -995,10 +1016,10 @@ def _format_html_report(predictions, repo_name: str, commit_data=None) -> str:
             <br>
             <p><strong>Risk Categories:</strong></p>
             <ul style="margin-left: 20px; margin-top: 10px;">
-                <li><strong class="improved">Improved (&lt; 0.0):</strong> Code quality is improving - excellent maintenance practices</li>
-                <li><strong class="stable">Stable (0.0-0.1):</strong> Code quality is stable - minimal degradation detected</li>
-                <li><strong class="degraded">Degraded (0.1-0.2):</strong> Moderate degradation - consider refactoring</li>
-                <li><strong class="severely-degraded">Severely Degraded (&gt; 0.2):</strong> Critical attention needed - rapid quality decline</li>
+                <li><strong class="low">Low Risk (0-49):</strong> Code quality is good - minimal maintenance needed</li>
+                <li><strong class="medium">Medium Risk (50-69):</strong> Some attention needed - consider monitoring</li>
+                <li><strong class="high">High Risk (70-89):</strong> Moderate degradation - consider refactoring</li>
+                <li><strong class="critical">Critical Risk (90-100):</strong> Critical attention needed - immediate action required</li>
             </ul>
         </div>
 
@@ -1006,11 +1027,12 @@ def _format_html_report(predictions, repo_name: str, commit_data=None) -> str:
             <h2 class="top-files">Highest Risk Files (Top 30)</h2>
             <div class="top-files-list">
                 {chr(10).join([
-                    f'''<div class="top-file-item {p.risk_category.value.replace('_', '-')}">
+                    f'''<div class="top-file-item {p.risk_category.value}">
                     <div class="file-name">{p.module}</div>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <div class="file-score">{p.degradation_score:.4f}</div>
-                        <div class="risk-badge {p.risk_category.value.replace('_', '-')}">{p.risk_category.display_name}</div>
+                        <div class="file-score"> (Raw {p.raw_prediction:.1f})</div>
+                        <div class="file-score">{p.normalized_score:.1f}</div>
+                        <div class="risk-badge {p.risk_category.value}">{p.risk_category.display_name}</div>
                     </div>
                 </div>'''
                     for p in sorted_preds[:30]
@@ -1070,10 +1092,10 @@ def _show_summary(predictions, logger):
         
     logger.info("Summary:", '📊')
     print(f"Total files: {len(predictions)}")
-    print(f"Severely degraded: {dist.get('severely_degraded', 0)}")
-    print(f"Degraded: {dist.get('degraded', 0)}")
-    print(f"Stable: {dist.get('stable', 0)}")
-    print(f"Improved: {dist.get('improved', 0)}")
+    print(f"Critical: {dist.get('critical', 0)}")
+    print(f"High: {dist.get('high', 0)}")
+    print(f"Medium: {dist.get('medium', 0)}")
+    print(f"Low: {dist.get('low', 0)}")
 
 
 if __name__ == '__main__':

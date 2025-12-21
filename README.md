@@ -138,13 +138,13 @@ html_path = generate_html_report(predictions, commit_data, "./")
 [
   {
     "module": "src/legacy/parser.ts",
-    "degradation_score": 0.3456,
+    "normalized_score": 0.3456,
     "raw_prediction": 0.3456,
     "risk_category": "severely_degraded"
   },
   {
     "module": "src/utils/helpers.ts",
-    "degradation_score": -0.1234,
+    "normalized_score": -0.1234,
     "raw_prediction": -0.1234,
     "risk_category": "improved"
   }
@@ -154,7 +154,7 @@ html_path = generate_html_report(predictions, commit_data, "./")
 ### CSV
 
 ```csv
-module,degradation_score,raw_prediction,risk_category
+module,normalized_score,raw_prediction,risk_category
 "src/legacy/parser.ts","0.3456","0.3456","severely_degraded"
 "src/utils/helpers.ts","-0.1234","-0.1234","improved"
 ```
@@ -244,7 +244,7 @@ The model considers multiple dimensions of code evolution:
 
 ### Prediction Output
 
-- **degradation_score**: Numerical score indicating code quality trend
+- **normalized_score**: Numerical score indicating code quality trend
   - Negative values: Quality improving
   - Positive values: Quality degrading
   - Higher magnitude = stronger trend
@@ -289,8 +289,8 @@ maintsight-pip/
 │   │   ├── risk_prediction.py     # RiskPrediction dataclass
 │   │   ├── file_stats.py          # FileStats dataclass
 │   │   ├── xgboost_model.py       # XGBoost model structures
-│   │   ├── xgboost_degradation_model_multiwindow_v2.pkl      # Pre-trained model
-│   │   └── xgboost_degradation_model_multiwindow_v2_metadata.json  # Model metadata
+│   │   ├── xgboost_model.pkl.pkl      # Pre-trained model
+│   │   └── xgboost_model_metadata.json  # Model metadata
 │   ├── services/                  # Core services
 │   │   ├── __init__.py
 │   │   ├── git_commit_collector.py

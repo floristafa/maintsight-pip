@@ -67,17 +67,3 @@ class XGBoostModel:
             score += tree.predict(features)
             
         return score
-        
-    def predict_proba(self, features: List[float]) -> float:
-        """Make probability prediction using sigmoid transformation.
-        
-        Args:
-            features: Input feature vector
-            
-        Returns:
-            Probability score between 0 and 1
-        """
-        raw_score = self.predict(features)
-        # Apply sigmoid transformation
-        import math
-        return 1.0 / (1.0 + math.exp(-raw_score))
